@@ -1,7 +1,7 @@
 import 'package:example_mobx/core/data/models/product_model.dart';
 import 'package:mobx/mobx.dart';
 
-import '../../core/repositories/products_repository.dart';
+import '../../core/domain/repositories/products_repository.dart';
 
 part 'products_store.g.dart';
 

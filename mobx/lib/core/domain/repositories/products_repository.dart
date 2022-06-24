@@ -1,7 +1,7 @@
 import 'package:example_mobx/core/data/models/product_model.dart';
 
-import '../data/local/products_local_store.dart';
-import '../data/remote/products_remote_store.dart';
+import '../../data/local/products_local_store.dart';
+import '../../data/remote/products_remote_store.dart';
 
 abstract class ProductsRepository {
   Future<List<ProductModel>> getProducts();

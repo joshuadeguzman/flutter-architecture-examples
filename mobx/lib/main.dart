@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 
 import 'core/data/api/firebase_api.dart';
 import 'core/data/local/products_local_store.dart';
-import 'core/repositories/products_repository.dart';
+import 'core/domain/repositories/products_repository.dart';
 
 void main() {
   final firebaseApi = FirebaseApi();
