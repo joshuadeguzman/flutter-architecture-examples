@@ -32,5 +32,4 @@ feature
 └── widgets
 ```
 
-**See [example](https://github.com/joshuadeguzman/flutter-architecture-examples/tree/main/mobx).**
-
+**See [MobX + REST example](https://github.com/joshuadeguzman/flutter-architecture-examples/tree/main/mobx) or [MobX + GraphQL example](https://github.com/joshuadeguzman/flutter-architecture-examples/tree/main/mobx_graphql).**

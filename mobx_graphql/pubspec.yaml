@@ -1,4 +1,4 @@
-name: mobx_main
+name: mobx_graphql
 description: A new Flutter project.
 
 # The following line prevents the package from being accidentally published to
@@ -36,7 +36,9 @@ dependencies:
   cupertino_icons: ^1.0.2
   mobx: ^2.0.7+3
   flutter_mobx: ^2.0.6+1 
-  json_annotation: ^4.5.0
+  json_annotation: ^4.5.0 
+  graphql: ^5.1.1 
+  gql: ^0.13.1
 
 dev_dependencies:
   flutter_test:
