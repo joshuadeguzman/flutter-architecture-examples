@@ -11,6 +11,8 @@ Layered Architecture
 ## Examples
 
 ###  MobX Architecture
+**Overview**
+
 ![mobx](.github/images/mobx.png)
 
 **Project Structure**
@@ -29,4 +31,6 @@ feature
 ├── views
 └── widgets
 ```
+
+**See [example](https://github.com/joshuadeguzman/flutter-architecture-examples/tree/main/mobx).**
 
