@@ -20,6 +20,6 @@ abstract class ProductsStoreBase with Store {
   @action
   Future<void> getProducts() async {
     final products = await productsRepository.getProducts();
-    this.products = products.toList();F
+    this.products = products.toList();
   }
 }
