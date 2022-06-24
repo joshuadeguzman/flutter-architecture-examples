@@ -1,10 +1,12 @@
+import 'package:example_mobx/core/data/models/product_model.dart';
+
 import '../data/local/products_local_store.dart';
 import '../data/remote/products_remote_store.dart';
 
 abstract class ProductsRepository {
-  Future<void> getProducts();
-  Future<List<void>> getProductsFromRemote();
-  Future<List<void>> getProductsFromLocal();
+  Future<List<ProductModel>> getProducts();
+  Future<List<ProductModel>> getProductsFromRemote();
+  Future<List<ProductModel>> getProductsFromLocal();
   Future<void> buyProduct(String productId);
 }
 
@@ -23,7 +25,7 @@ class LiveProductsRepository extends ProductsRepository {
   }
 
   @override
-  Future<List<void>> getProducts() async {
+  Future<List<ProductModel>> getProducts() async {
     final local = await localStore.getProducts();
     if (local.isNotEmpty) {
       return local;
@@ -34,12 +36,12 @@ class LiveProductsRepository extends ProductsRepository {
   }
 
   @override
-  Future<List<void>> getProductsFromLocal() async {
+  Future<List<ProductModel>> getProductsFromLocal() async {
     return await localStore.getProducts();
   }
 
   @override
-  Future<List<void>> getProductsFromRemote() async {
+  Future<List<ProductModel>> getProductsFromRemote() async {
     return await remoteStore.getProducts();
   }
 }

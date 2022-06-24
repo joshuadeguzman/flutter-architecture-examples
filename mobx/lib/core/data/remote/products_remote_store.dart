@@ -1,9 +1,10 @@
 import 'package:example_mobx/core/data/api/backend_api.dart';
+import 'package:example_mobx/core/data/models/product_model.dart';
 
 import '../api/firebase_api.dart';
 
 abstract class ProductsRemoteStore {
-  Future<List<void>> getProducts();
+  Future<List<ProductModel>> getProducts();
   Future<void> buyProduct(String productId);
 }
 
@@ -16,7 +17,7 @@ class LiveProductRemoteStore extends ProductsRemoteStore {
     required this.firebaseApi,
   });
   @override
-  Future<List<void>> getProducts() {
+  Future<List<ProductModel>> getProducts() {
     // TODO: implement getProducts
     throw UnimplementedError();
   }

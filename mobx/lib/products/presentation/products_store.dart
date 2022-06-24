@@ -1,3 +1,4 @@
+import 'package:example_mobx/core/data/models/product_model.dart';
 import 'package:mobx/mobx.dart';
 
 import '../../core/repositories/products_repository.dart';
@@ -10,12 +11,15 @@ abstract class ProductsStoreBase with Store {
   final LiveProductsRepository productsRepository;
 
   @observable
-  List<void> products = [];
+  List<ProductModel> products = [];
 
   ProductsStoreBase({
     required this.productsRepository,
   });
 
   @action
-  void getProducts() {}
+  Future<void> getProducts() async {
+    final products = await productsRepository.getProducts();
+    this.products = products.toList();F
+  }
 }

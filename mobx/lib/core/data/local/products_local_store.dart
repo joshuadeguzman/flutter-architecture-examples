@@ -1,8 +1,10 @@
+import 'package:example_mobx/core/data/models/product_model.dart';
+
 import '../api/hive_db.dart';
 
 abstract class ProductLocalStore {
-  Future<List<void>> getProducts();
-  Future<List<void>> cacheProducts(List<void> products);
+  Future<List<ProductModel>> getProducts();
+  Future<List<ProductModel>> cacheProducts(List<void> products);
 }
 
 class LiveProductsLocalStore extends ProductLocalStore {
@@ -13,13 +15,13 @@ class LiveProductsLocalStore extends ProductLocalStore {
   });
 
   @override
-  Future<List<void>> getProducts() {
+  Future<List<ProductModel>> getProducts() {
     // TODO: implement getProducts
     throw UnimplementedError();
   }
 
   @override
-  Future<List<void>> cacheProducts(List<void> products) {
+  Future<List<ProductModel>> cacheProducts(List<void> products) {
     // TODO: implement cacheProducts
     throw UnimplementedError();
   }

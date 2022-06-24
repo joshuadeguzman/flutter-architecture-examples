@@ -18,13 +18,21 @@ class ProductsPage extends StatefulWidget {
 }
 
 class _ProductsPageState extends State<ProductsPage> {
+  ProductsStore get store => widget.productsStore;
+
   @override
   Widget build(BuildContext context) {
     return ListView.builder(
       itemBuilder: (context, i) {
-        return ProductItem();
+        if (store.products.isNotEmpty) {
+          return ProductItem(
+            model: store.products[i],
+          );
+        }
+
+        return const Text('No items found');
       },
-      itemCount: 20,
+      itemCount: store.products.length,
     );
   }
 }
