@@ -1,6 +1,6 @@
 # Flutter Architecture Examples
 
-An opinionated architecture collection when building Flutter Apps.
+A collection of opionionated project architectures for Flutter apps.
 
 ## Overview
 
