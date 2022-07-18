@@ -4,14 +4,18 @@ FLUTTER_BIN_DIR := $(shell dirname $(FLUTTER))
 FLUTTER_DIR := $(FLUTTER_BIN_DIR:/bin=)
 DART := $(FLUTTER_BIN_DIR)/cache/dart-sdk/bin/dart
 
-.PHONY: deps
-deps:
+.PHONY: pubs
+pubs:
 	cd mobx; $(FLUTTER) pub get
 	cd mobx_graphql; $(FLUTTER) pub get
 
-.PHONY: mobx
-mobx:
-	cd mobx; $(FLUTTER) run
+.PHONY: pub
+pub:
+	cd $(app); $(FLUTTER) pub get
+
+.PHONY: run
+run:
+	cd "$(app)"; $(FLUTTER) run
 
 # Git
 .PHONY: fetch-main

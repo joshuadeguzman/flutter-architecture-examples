@@ -8,6 +8,43 @@ Layered Architecture
 
 ![layered](.github/images/layered.png)
 
+## Usage
+
+### Setting up the projects
+
+Select an example project below. To download its dependencies, run:
+
+```
+make pub app=<example_app>
+```
+
+For example,
+
+```
+make pub app=mobx
+```
+
+Or, download the dependencies for all projects:
+
+```
+make pubs
+```
+
+### Running the project
+
+Select an example project below and run:
+
+```
+make run app=<example_app>
+```
+
+For example,
+
+```
+make run app=mobx
+```
+
+
 ## Examples
 
 ###  MobX Architecture
