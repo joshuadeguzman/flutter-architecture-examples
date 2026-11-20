@@ -128,7 +128,7 @@ def frame(s, labels):
         s.group(x, PANEL_Y, PW, PANEL_H, label, color)
 
 
-def wires(s, top_h, view_to_state_label, footer):
+def wires(s, top_h, view_to_state_label, footer, calls_label="calls"):
     """The arrows shared by every diagram. top_h is the height of the top cards."""
     mid = TOP + 36
     # View builds the tile.
@@ -138,7 +138,7 @@ def wires(s, top_h, view_to_state_label, footer):
     x0, x1 = cx(0) + CW, cx(1)
     s.arrow([(x0, mid - 12), (x1, mid - 12)], FLUTTER_DARK)
     s.arrow([(x1, mid + 12), (x0, mid + 12)], FLUTTER_DARK, dashed=True)
-    note(s, "calls", gap_mid(0), mid - 20, FLUTTER_DARK, size=12)
+    note(s, calls_label, gap_mid(0), mid - 20, FLUTTER_DARK, size=12)
     note(s, view_to_state_label, gap_mid(0), mid + 32, FLUTTER_DARK, size=12)
     # State asks the repository.
     s.arrow([(cx(1) + CW, mid), (cx(2), mid)], GOOGLE_BLUE)
@@ -171,7 +171,8 @@ def layered():
 
 
 def state_diagram(name, title, state_title, state_sub, state_code,
-                  view_sub, view_code, remote_title, remote_sub, source_sub, footer):
+                  view_sub, view_code, remote_title, remote_sub, source_sub, footer,
+                  calls_label="calls"):
     s = Svg(W, H, title)
     frame(s, ["VIEW", "STATE", "DOMAIN", "DATA", "SOURCES"])
     s.card(cx(0), TOP, CW, 96, "CharactersPage", view_sub, FLUTTER, code=view_code)
@@ -183,7 +184,7 @@ def state_diagram(name, title, state_title, state_sub, state_code,
     s.card(cx(3), LOW, CW, 72, "HiveCharactersLocalStore", "Saves the list as JSON", GREEN)
     s.card(cx(4), TOP, CW, 72, "Rick and Morty API", source_sub, YELLOW)
     s.card(cx(4), LOW, CW, 72, "Hive box", "On the device", YELLOW)
-    wires(s, 96, "rebuilds", footer)
+    wires(s, 96, "rebuilds", footer, calls_label)
     s.save(name)
 
 
@@ -209,4 +210,42 @@ state_diagram(
     "RestCharactersRemoteStore", "GET /api/character", "REST",
     "Providers create each layer. Tests swap the repository with one override.",
 )
+state_diagram(
+    "bloc_cubit", "Bloc: Cubit",
+    "CharactersCubit", "Plain methods, no events", "load({forceRefresh})",
+    "BlocBuilder rebuilds on change", "BlocBuilder<CharactersCubit, ...>",
+    "RestCharactersRemoteStore", "GET /api/character", "REST",
+    "RepositoryProvider shares the repository. BlocProvider creates the cubit on the page.",
+)
+state_diagram(
+    "bloc", "Bloc: events",
+    "CharactersBloc", "Events in, sealed states out", "on<CharactersSearchChanged>",
+    "Adds events, switches on state", "bloc.add(CharactersRefreshed())",
+    "RestCharactersRemoteStore", "GET /api/character?name=", "REST",
+    "Search is debounced and restartable. Refresh is droppable, so extra pulls are ignored.",
+    calls_label="events",
+)
+
+
+def bloc_advanced():
+    s = Svg(W, H, "Bloc for bigger teams")
+    frame(s, ["APP · VIEW", "APP · STATE", "REPOSITORY PACKAGE", "DATA", "SOURCES"])
+    s.card(cx(0), TOP, CW, 96, "CharactersPage", "BlocProvider, then the view", FLUTTER,
+           code="CharactersView")
+    s.card(cx(0), LOW, CW, 72, "CharacterTile", "One row in the list", FLUTTER)
+    s.card(cx(1), TOP, CW, 96, "CharactersBloc", "Status enum state, Equatable", FLUTTER_DARK,
+           code="on<CharactersSearchChanged>")
+    s.card(cx(2), TOP, CW, 96, "CharactersRepository", "packages/characters_repository",
+           GOOGLE_BLUE, code="Character, CharactersCache")
+    s.card(cx(3), TOP, CW, 72, "RickAndMortyApiClient", "packages/rick_and_morty_api", GREEN)
+    s.card(cx(3), LOW, CW, 72, "HiveCharactersCache", "In the app, implements the cache", GREEN)
+    s.card(cx(4), TOP, CW, 72, "Rick and Morty API", "REST", YELLOW)
+    s.card(cx(4), LOW, CW, 72, "Hive box", "On the device", YELLOW)
+    wires(s, 96, "rebuilds",
+          "Each package has its own models and tests. ApiCharacter becomes Character in the repository.",
+          calls_label="events")
+    s.save("bloc_advanced")
+
+
+bloc_advanced()
 print("ok")
