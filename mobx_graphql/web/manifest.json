@@ -1,6 +1,6 @@
 {
-    "name": "mobx",
-    "short_name": "mobx",
+    "name": "example_mobx_graphql",
+    "short_name": "example_mobx_graphql",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
