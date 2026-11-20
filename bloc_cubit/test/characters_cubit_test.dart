@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:bloc_test/bloc_test.dart';
 import 'package:example_bloc_cubit/characters/presentation/characters_cubit.dart';
 import 'package:example_bloc_cubit/characters/presentation/characters_state.dart';
+import 'package:example_bloc_cubit/core/data/models/character.dart';
 import 'package:example_bloc_cubit/core/domain/repositories/characters_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -68,4 +71,30 @@ void main() {
       ),
     ],
   );
+
+  test('ignores a second load while one is running', () async {
+    final pending = Completer<List<Character>>();
+    when(() => repository.getCharacters()).thenAnswer((_) => pending.future);
+    final cubit = CharactersCubit(repository);
+
+    final first = cubit.load();
+    await cubit.load();
+    pending.complete([rick]);
+    await first;
+
+    verify(() => repository.getCharacters()).called(1);
+    expect(cubit.state.characters, [rick]);
+  });
+
+  test('does not emit after it is closed', () async {
+    final pending = Completer<List<Character>>();
+    when(() => repository.getCharacters()).thenAnswer((_) => pending.future);
+    final cubit = CharactersCubit(repository);
+
+    final load = cubit.load();
+    await cubit.close();
+    pending.complete([rick]);
+
+    await expectLater(load, completes);
+  });
 }

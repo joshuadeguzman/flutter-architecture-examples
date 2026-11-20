@@ -79,19 +79,42 @@ void main() {
   });
 
   group(CharactersRefreshed, () {
+    const listed = CharactersState(
+      status: CharactersStatus.success,
+      characters: [rick],
+    );
+
     blocTest<CharactersBloc, CharactersState>(
       'skips the cache and keeps the list visible',
       setUp: () =>
           when(() => repository.getCharacters(forceRefresh: true))
               .thenAnswer((_) async => [morty]),
       build: build,
-      seed: () => const CharactersState(
-        status: CharactersStatus.success,
-        characters: [rick],
-      ),
+      seed: () => listed,
       act: (bloc) => bloc.add(const CharactersRefreshed()),
       expect: () => const [
+        CharactersState(
+          status: CharactersStatus.refreshing,
+          characters: [rick],
+        ),
         CharactersState(status: CharactersStatus.success, characters: [morty]),
+      ],
+    );
+
+    blocTest<CharactersBloc, CharactersState>(
+      'still finishes when the data did not change',
+      setUp: () =>
+          when(() => repository.getCharacters(forceRefresh: true))
+              .thenAnswer((_) async => [rick]),
+      build: build,
+      seed: () => listed,
+      act: (bloc) => bloc.add(const CharactersRefreshed()),
+      expect: () => const [
+        CharactersState(
+          status: CharactersStatus.refreshing,
+          characters: [rick],
+        ),
+        listed,
       ],
     );
 
@@ -101,12 +124,13 @@ void main() {
           when(() => repository.getCharacters(forceRefresh: true))
               .thenThrow(Exception('offline')),
       build: build,
-      seed: () => const CharactersState(
-        status: CharactersStatus.success,
-        characters: [rick],
-      ),
+      seed: () => listed,
       act: (bloc) => bloc.add(const CharactersRefreshed()),
       expect: () => const [
+        CharactersState(
+          status: CharactersStatus.refreshing,
+          characters: [rick],
+        ),
         CharactersState(status: CharactersStatus.failure, characters: [rick]),
       ],
     );
@@ -121,6 +145,7 @@ void main() {
             .thenAnswer((_) => pending.future);
       },
       build: build,
+      seed: () => listed,
       act: (bloc) async {
         bloc
           ..add(const CharactersRefreshed())
@@ -130,6 +155,43 @@ void main() {
       },
       verify: (_) =>
           verify(() => repository.getCharacters(forceRefresh: true)).called(1),
+    );
+
+    blocTest<CharactersBloc, CharactersState>(
+      'is dropped when a search finishes while it runs',
+      setUp: () {
+        pending = Completer();
+        when(() => repository.getCharacters(forceRefresh: true))
+            .thenAnswer((_) => pending.future);
+        when(() => repository.searchCharacters('morty'))
+            .thenAnswer((_) async => [morty]);
+      },
+      build: build,
+      seed: () => listed,
+      act: (bloc) async {
+        bloc
+          ..add(const CharactersRefreshed())
+          ..add(const CharactersSearchChanged('morty'));
+        await Future<void>.delayed(debounce * 3);
+        pending.complete([rick, morty]);
+      },
+      wait: debounce,
+      expect: () => const [
+        CharactersState(
+          status: CharactersStatus.refreshing,
+          characters: [rick],
+        ),
+        CharactersState(
+          status: CharactersStatus.loading,
+          characters: [rick],
+          query: 'morty',
+        ),
+        CharactersState(
+          status: CharactersStatus.success,
+          characters: [morty],
+          query: 'morty',
+        ),
+      ],
     );
   });
 

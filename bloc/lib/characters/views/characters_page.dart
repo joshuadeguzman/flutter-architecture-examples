@@ -31,12 +31,13 @@ class CharactersView extends StatelessWidget {
   final String title;
 
   Future<void> _refresh(BuildContext context) async {
-    final bloc = context.read<CharactersBloc>()
-      ..add(const CharactersRefreshed());
-    // Keep the spinner until the refresh finishes.
-    await bloc.stream
-        .firstWhere((state) => state is! CharactersLoadInProgress)
-        .timeout(const Duration(seconds: 15), onTimeout: () => bloc.state);
+    final bloc = context.read<CharactersBloc>();
+    if (bloc.state is! CharactersLoadSuccess) return;
+    bloc.add(const CharactersRefreshed());
+    // Keep the spinner until the refresh finishes or something replaces it.
+    await bloc.stream.firstWhere(
+      (state) => state is! CharactersLoadSuccess || !state.isRefreshing,
+    );
   }
 
   @override

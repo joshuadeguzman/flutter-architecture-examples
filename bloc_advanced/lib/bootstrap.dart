@@ -4,6 +4,7 @@ import 'package:characters_repository/characters_repository.dart';
 import 'package:example_bloc_advanced/app/app.dart';
 import 'package:example_bloc_advanced/app/app_bloc_observer.dart';
 import 'package:example_bloc_advanced/cache/hive_characters_cache.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hive_ce_flutter/hive_flutter.dart';
@@ -19,7 +20,8 @@ Future<void> bootstrap() async {
   FlutterError.onError = (details) {
     log(details.exceptionAsString(), stackTrace: details.stack);
   };
-  Bloc.observer = const AppBlocObserver();
+  // Logs every transition. Only in debug builds, since it logs app data.
+  if (kDebugMode) Bloc.observer = const AppBlocObserver();
 
   await Hive.initFlutter();
   final box = await Hive.openBox<String>(HiveCharactersCache.boxName);

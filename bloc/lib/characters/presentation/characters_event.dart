@@ -10,7 +10,7 @@ sealed class CharactersEvent extends Equatable {
   List<Object> get props => [];
 }
 
-/// The screen opened.
+/// The screen opened, or the user tapped retry.
 final class CharactersStarted extends CharactersEvent {
   const CharactersStarted();
 }

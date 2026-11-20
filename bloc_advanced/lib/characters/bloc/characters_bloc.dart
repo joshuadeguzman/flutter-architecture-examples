@@ -41,8 +41,20 @@ class CharactersBloc extends Bloc<CharactersEvent, CharactersState> {
   Future<void> _onRefreshed(
     CharactersRefreshed event,
     Emitter<CharactersState> emit,
-  ) {
-    return _load(emit, query: state.query, forceRefresh: true);
+  ) async {
+    // Mark the refresh as running. This also makes sure the final state is
+    // new, so the view always sees the refresh finish, even when the data
+    // didn't change.
+    emit(state.copyWith(status: CharactersStatus.refreshing));
+    await _load(
+      emit,
+      query: state.query,
+      forceRefresh: true,
+      // Each transformer only controls its own event type, so a search can
+      // run while a refresh does. Drop the refresh result if anything else
+      // changed the screen in the meantime.
+      shouldEmit: () => state.status == CharactersStatus.refreshing,
+    );
   }
 
   Future<void> _onSearchChanged(
@@ -61,29 +73,28 @@ class CharactersBloc extends Bloc<CharactersEvent, CharactersState> {
     required String query,
     bool forceRefresh = false,
     bool keepCharactersOnFailure = true,
+    bool Function()? shouldEmit,
   }) async {
+    CharactersState next;
     try {
       final characters = query.isEmpty
           ? await _charactersRepository.getCharacters(
               forceRefresh: forceRefresh,
             )
           : await _charactersRepository.searchCharacters(query);
-      emit(
-        state.copyWith(
-          status: CharactersStatus.success,
-          characters: characters,
-          query: query,
-        ),
+      next = state.copyWith(
+        status: CharactersStatus.success,
+        characters: characters,
+        query: query,
       );
     } on Exception {
       // Keep the current characters so the screen can still show them.
-      emit(
-        state.copyWith(
-          status: CharactersStatus.failure,
-          query: query,
-          characters: keepCharactersOnFailure ? null : const [],
-        ),
+      next = state.copyWith(
+        status: CharactersStatus.failure,
+        query: query,
+        characters: keepCharactersOnFailure ? null : const [],
       );
     }
+    if (shouldEmit == null || shouldEmit()) emit(next);
   }
 }

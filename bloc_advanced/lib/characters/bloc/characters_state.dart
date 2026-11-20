@@ -1,6 +1,14 @@
 part of 'characters_bloc.dart';
 
-enum CharactersStatus { initial, loading, success, failure }
+enum CharactersStatus {
+  initial,
+  loading,
+
+  /// A pull to refresh is running. The list stays on screen.
+  refreshing,
+  success,
+  failure,
+}
 
 /// The state of the characters screen.
 ///

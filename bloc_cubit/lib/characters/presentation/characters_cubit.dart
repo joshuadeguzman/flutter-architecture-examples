@@ -17,18 +17,19 @@ class CharactersCubit extends Cubit<CharactersState> {
     if (state.status == CharactersStatus.loading) return;
 
     emit(state.copyWith(status: CharactersStatus.loading));
+    CharactersState next;
     try {
       final characters = await _repository.getCharacters(
         forceRefresh: forceRefresh,
       );
-      emit(
-        state.copyWith(
-          status: CharactersStatus.success,
-          characters: characters,
-        ),
+      next = state.copyWith(
+        status: CharactersStatus.success,
+        characters: characters,
       );
     } catch (_) {
-      emit(state.copyWith(status: CharactersStatus.failure));
+      next = state.copyWith(status: CharactersStatus.failure);
     }
+    // The screen may have closed while the request ran.
+    if (!isClosed) emit(next);
   }
 }

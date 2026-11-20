@@ -15,6 +15,19 @@ class CharactersRequestFailure implements Exception {
   String toString() => 'CharactersRequestFailure($statusCode)';
 }
 
+/// Thrown when the API answers with JSON in a shape this client doesn't
+/// expect.
+class CharactersParseFailure implements Exception {
+  /// Creates a [CharactersParseFailure].
+  const CharactersParseFailure(this.cause);
+
+  /// The error that happened while reading the response.
+  final Object cause;
+
+  @override
+  String toString() => 'CharactersParseFailure($cause)';
+}
+
 /// A small client for the public Rick and Morty REST API.
 ///
 /// No API key is needed. See https://rickandmortyapi.com/documentation.
@@ -30,7 +43,8 @@ class RickAndMortyApiClient {
   /// Returns the first page of characters, filtered by [name] if given.
   ///
   /// A search with no matches returns an empty list. Throws a
-  /// [CharactersRequestFailure] for any other error response.
+  /// [CharactersRequestFailure] for any other error response, and a
+  /// [CharactersParseFailure] if the response isn't the expected JSON.
   Future<List<ApiCharacter>> getCharacters({String? name}) async {
     final uri = Uri.https(_authority, '/api/character', {
       'page': '1',
@@ -44,12 +58,18 @@ class RickAndMortyApiClient {
       throw CharactersRequestFailure(response.statusCode);
     }
 
-    final body = jsonDecode(response.body) as Map<String, dynamic>;
-    final results = body['results'] as List<dynamic>;
-    return [
-      for (final item in results)
-        ApiCharacter.fromJson(item as Map<String, dynamic>),
-    ];
+    try {
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      final results = body['results'] as List<dynamic>;
+      return [
+        for (final item in results)
+          ApiCharacter.fromJson(item as Map<String, dynamic>),
+      ];
+    } on Object catch (error) {
+      // Both FormatException and TypeError end up here. Turn them into one
+      // exception, so callers only have to handle exceptions.
+      throw CharactersParseFailure(error);
+    }
   }
 
   /// Closes the underlying HTTP client.

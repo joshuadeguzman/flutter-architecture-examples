@@ -23,15 +23,22 @@ final class CharactersLoadInProgress extends CharactersState {
 }
 
 final class CharactersLoadSuccess extends CharactersState {
-  const CharactersLoadSuccess(this.characters, {this.query = ''});
+  const CharactersLoadSuccess(
+    this.characters, {
+    this.query = '',
+    this.isRefreshing = false,
+  });
 
   final List<Character> characters;
 
   /// The search that produced these characters. Empty for the full list.
   final String query;
 
+  /// Whether a pull to refresh is running. The list stays on screen.
+  final bool isRefreshing;
+
   @override
-  List<Object?> get props => [characters, query];
+  List<Object?> get props => [characters, query, isRefreshing];
 }
 
 final class CharactersLoadFailure extends CharactersState {

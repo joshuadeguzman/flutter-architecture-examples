@@ -26,10 +26,10 @@ class CharactersView extends StatelessWidget {
   Future<void> _refresh(BuildContext context) async {
     final bloc = context.read<CharactersBloc>()
       ..add(const CharactersRefreshed());
-    // Keep the spinner until the refresh finishes.
-    await bloc.stream
-        .firstWhere((state) => state.status != CharactersStatus.loading)
-        .timeout(const Duration(seconds: 15), onTimeout: () => bloc.state);
+    // Keep the spinner until the refresh finishes or something replaces it.
+    await bloc.stream.firstWhere(
+      (state) => state.status != CharactersStatus.refreshing,
+    );
   }
 
   @override
@@ -47,7 +47,7 @@ class CharactersView extends StatelessWidget {
             ..hideCurrentSnackBar()
             ..showSnackBar(
               const SnackBar(
-                content: Text("Couldn't refresh. Showing saved characters."),
+                content: Text("Couldn't refresh. Try again later."),
               ),
             );
         },
@@ -69,8 +69,11 @@ class CharactersView extends StatelessWidget {
                 builder: (context, state) {
                   if (state.characters.isEmpty) {
                     return switch (state.status) {
-                      CharactersStatus.initial || CharactersStatus.loading =>
-                        const Center(child: CircularProgressIndicator()),
+                      CharactersStatus.initial ||
+                      CharactersStatus.loading ||
+                      CharactersStatus.refreshing => const Center(
+                        child: CircularProgressIndicator(),
+                      ),
                       CharactersStatus.failure => CharactersError(
                         onRetry: () => context.read<CharactersBloc>().add(
                           const CharactersStarted(),

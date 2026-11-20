@@ -61,9 +61,13 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.fling(find.text('Rick Sanchez'), const Offset(0, 400), 1000);
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump(const Duration(seconds: 1));
 
+    // The fake returns the same list, and the spinner still goes away.
     expect(repository.refreshes, [false, true]);
+    expect(find.byType(RefreshProgressIndicator), findsNothing);
   });
 
   testWidgets('searches by name and shows when nothing matches', (

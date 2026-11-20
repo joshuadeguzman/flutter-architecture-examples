@@ -115,10 +115,7 @@ void main() {
       await tester.pumpWidget(view());
       await tester.pump();
 
-      expect(
-        find.text("Couldn't refresh. Showing saved characters."),
-        findsOneWidget,
-      );
+      expect(find.text("Couldn't refresh. Try again later."), findsOneWidget);
       expect(find.text('Rick Sanchez'), findsOneWidget);
     });
   });
@@ -137,6 +134,30 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Rick Sanchez'), findsOneWidget);
+    });
+
+    testWidgets('pull to refresh finishes when the data did not change', (
+      tester,
+    ) async {
+      final repository = MockCharactersRepository();
+      when(repository.getCharacters).thenAnswer((_) async => [rick]);
+      when(() => repository.getCharacters(forceRefresh: true))
+          .thenAnswer((_) async => [rick]);
+
+      await tester.pumpWidget(
+        RepositoryProvider<CharactersRepository>.value(
+          value: repository,
+          child: const MaterialApp(home: CharactersPage()),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.fling(find.text('Rick Sanchez'), const Offset(0, 400), 1000);
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump(const Duration(seconds: 1));
+
+      verify(() => repository.getCharacters(forceRefresh: true)).called(1);
+      expect(find.byType(RefreshProgressIndicator), findsNothing);
     });
   });
 }

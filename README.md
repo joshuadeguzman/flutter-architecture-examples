@@ -2,7 +2,7 @@
 
 The same small app built six ways, so you can compare how each architecture is put together.
 
-Each example shows a list of characters from the free [Rick and Morty API](https://rickandmortyapi.com). It caches the list on the device, works offline once loaded, and supports pull to refresh. Only the state management and the API style change between them.
+Each example shows a list of characters from the free [Rick and Morty API](https://rickandmortyapi.com). It caches the list on the device, works offline once loaded, and supports pull to refresh. The examples differ in state management and API style. The `bloc` and `bloc_advanced` examples also add search, and `bloc_advanced` splits its layers into packages.
 
 | Example | State management | API | Wiring | Code generation |
 |---|---|---|---|---|
@@ -135,7 +135,7 @@ See [`bloc_cubit`](bloc_cubit).
 
 `CharactersBloc` turns events into states. Events are named in the past tense (`CharactersStarted`, `CharactersRefreshed`, `CharactersSearchChanged`), and the state is a `sealed` class, so the view's `switch` must handle every state.
 
-Each event picks how it handles overlapping events, using [`bloc_concurrency`](https://pub.dev/packages/bloc_concurrency):
+Each event picks how it handles overlapping events of the same type, using [`bloc_concurrency`](https://pub.dev/packages/bloc_concurrency):
 
 | Event | Transformer | Why |
 |---|---|---|
@@ -143,7 +143,9 @@ Each event picks how it handles overlapping events, using [`bloc_concurrency`](h
 | `CharactersRefreshed` | `droppable` | Ignore extra pulls while a refresh runs. |
 | `CharactersStarted` | `droppable` | Ignore extra taps on retry. |
 
-A `BlocObserver` logs every transition, so you can see which event caused each change.
+A transformer only controls events of its own type, so a search can still run while a refresh does. The bloc handles that itself: a refresh result is dropped if a search changed the screen while it ran.
+
+A `BlocObserver` logs every transition in debug builds, so you can see which event caused each change.
 
 ![Bloc with events on iOS and Android](.github/images/screenshots/bloc.png)
 
@@ -158,7 +160,7 @@ The same features as `bloc`, set up for a large codebase:
 - **Packages per layer.** `rick_and_morty_api` only knows HTTP and returns `ApiCharacter`. `characters_repository` turns those into its own `Character` model and owns the cache rules. Each has its own tests and can be versioned on its own.
 - **The cache is an interface.** The repository package defines `CharactersCache`, and the app provides `HiveCharactersCache`, so the packages have no Flutter or database dependency.
 - **Feature folders.** Everything for the characters screen lives in `lib/characters`.
-- **A status enum state.** The screen keeps showing the list while loading, and shows a snackbar if a refresh fails instead of hiding the list.
+- **A status enum state.** The screen keeps showing the list while it loads or refreshes. If a refresh fails, the list stays and a snackbar says so.
 - **Page and view are split.** `CharactersPage` provides the bloc, and `CharactersView` only renders. View tests use a `MockBloc`, so they don't run any bloc logic.
 - **Strict lints** with [`very_good_analysis`](https://pub.dev/packages/very_good_analysis).
 
@@ -181,13 +183,18 @@ No API key is needed.
 
 ## Tests
 
-Every example tests the same behavior:
+Every example tests:
 
-- The repository's caching rules, with a fake remote and local store.
+- The repository's caching rules, with a fake or mocked remote and local store.
 - The remote store's parsing and error handling, with a mock HTTP client.
 - The page: it shows the characters, shows an error with a working retry button, and skips the cache on pull to refresh.
 
-The Bloc examples also test the cubit or bloc with [`bloc_test`](https://pub.dev/packages/bloc_test), including the debounce and the ignored extra refresh. `bloc_advanced` tests each package with `dart test`, and its view with a mock bloc.
+The Bloc examples also test their cubit or bloc with [`bloc_test`](https://pub.dev/packages/bloc_test):
+
+- `bloc_cubit`: loading, failure, keeping the list during a refresh, and ignoring a second load.
+- `bloc` and `bloc_advanced`: the debounced search, the ignored extra refresh, and a refresh that a newer search replaces.
+
+`bloc_advanced` tests each package with `dart test`, its view with a mock bloc, and its Hive cache with a real box in a temp folder.
 
 ## Diagrams
 

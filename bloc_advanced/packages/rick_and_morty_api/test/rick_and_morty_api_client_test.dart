@@ -85,5 +85,18 @@ void main() {
         ),
       );
     });
+
+    test('throws CharactersParseFailure on unexpected JSON', () async {
+      final client = RickAndMortyApiClient(
+        httpClient: MockClient(
+          (_) async => http.Response(jsonEncode({'results': 'nope'}), 200),
+        ),
+      );
+
+      await expectLater(
+        client.getCharacters(),
+        throwsA(isA<CharactersParseFailure>()),
+      );
+    });
   });
 }

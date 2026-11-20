@@ -55,9 +55,32 @@ class CharactersBloc extends Bloc<CharactersEvent, CharactersState> {
   Future<void> _onRefreshed(
     CharactersRefreshed event,
     Emitter<CharactersState> emit,
-  ) {
-    // Keep showing the current list while the refresh runs.
-    return _load(emit, query: _currentQuery, forceRefresh: true);
+  ) async {
+    final current = state;
+    if (current is! CharactersLoadSuccess) return;
+
+    // Keep showing the list, and mark it as refreshing. This also makes sure
+    // the final state is new, so the view always sees the refresh finish,
+    // even when the data didn't change.
+    emit(
+      CharactersLoadSuccess(
+        current.characters,
+        query: current.query,
+        isRefreshing: true,
+      ),
+    );
+    await _load(
+      emit,
+      query: current.query,
+      forceRefresh: true,
+      // Each transformer only controls its own event type, so a search can
+      // run while a refresh does. Drop the refresh result if anything else
+      // changed the screen in the meantime.
+      shouldEmit: () => switch (state) {
+        CharactersLoadSuccess(:final isRefreshing) => isRefreshing,
+        _ => false,
+      },
+    );
   }
 
   Future<void> _onSearchChanged(
@@ -72,14 +95,17 @@ class CharactersBloc extends Bloc<CharactersEvent, CharactersState> {
     Emitter<CharactersState> emit, {
     required String query,
     bool forceRefresh = false,
+    bool Function()? shouldEmit,
   }) async {
+    CharactersState next;
     try {
       final characters = query.isEmpty
           ? await _repository.getCharacters(forceRefresh: forceRefresh)
           : await _repository.searchCharacters(query);
-      emit(CharactersLoadSuccess(characters, query: query));
+      next = CharactersLoadSuccess(characters, query: query);
     } catch (_) {
-      emit(CharactersLoadFailure(query: query));
+      next = CharactersLoadFailure(query: query);
     }
+    if (shouldEmit == null || shouldEmit()) emit(next);
   }
 }

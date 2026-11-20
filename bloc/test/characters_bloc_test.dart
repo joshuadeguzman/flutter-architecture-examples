@@ -4,6 +4,7 @@ import 'package:bloc_test/bloc_test.dart';
 import 'package:example_bloc/characters/presentation/characters_bloc.dart';
 import 'package:example_bloc/characters/presentation/characters_event.dart';
 import 'package:example_bloc/characters/presentation/characters_state.dart';
+import 'package:example_bloc/core/data/models/character.dart';
 import 'package:example_bloc/core/domain/repositories/characters_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -98,7 +99,7 @@ void main() {
   );
 
   group('CharactersRefreshed', () {
-    late Completer<List<Never>> pending;
+    late Completer<List<Character>> pending;
 
     blocTest<CharactersBloc, CharactersState>(
       'skips the cache and keeps the list visible',
@@ -109,7 +110,22 @@ void main() {
       seed: () => const CharactersLoadSuccess([rick]),
       act: (bloc) => bloc.add(const CharactersRefreshed()),
       expect: () => [
+        const CharactersLoadSuccess([rick], isRefreshing: true),
         const CharactersLoadSuccess([morty]),
+      ],
+    );
+
+    blocTest<CharactersBloc, CharactersState>(
+      'still finishes when the data did not change',
+      setUp: () =>
+          when(() => repository.getCharacters(forceRefresh: true))
+              .thenAnswer((_) async => [rick]),
+      build: build,
+      seed: () => const CharactersLoadSuccess([rick]),
+      act: (bloc) => bloc.add(const CharactersRefreshed()),
+      expect: () => [
+        const CharactersLoadSuccess([rick], isRefreshing: true),
+        const CharactersLoadSuccess([rick]),
       ],
     );
 
@@ -135,6 +151,32 @@ void main() {
     );
 
     blocTest<CharactersBloc, CharactersState>(
+      'is dropped when a search finishes while it runs',
+      setUp: () {
+        pending = Completer();
+        when(() => repository.getCharacters(forceRefresh: true))
+            .thenAnswer((_) => pending.future);
+        when(() => repository.searchCharacters('rick'))
+            .thenAnswer((_) async => [rick]);
+      },
+      build: build,
+      seed: () => const CharactersLoadSuccess([rick, morty]),
+      act: (bloc) async {
+        bloc
+          ..add(const CharactersRefreshed())
+          ..add(const CharactersSearchChanged('rick'));
+        await Future<void>.delayed(debounce * 3);
+        pending.complete([rick, morty]);
+      },
+      wait: debounce,
+      expect: () => [
+        const CharactersLoadSuccess([rick, morty], isRefreshing: true),
+        const CharactersLoadInProgress(),
+        const CharactersLoadSuccess([rick], query: 'rick'),
+      ],
+    );
+
+    blocTest<CharactersBloc, CharactersState>(
       'refreshes the current search',
       setUp: () =>
           when(() => repository.searchCharacters('rick'))
@@ -143,6 +185,7 @@ void main() {
       seed: () => const CharactersLoadSuccess([rick], query: 'rick'),
       act: (bloc) => bloc.add(const CharactersRefreshed()),
       expect: () => [
+        const CharactersLoadSuccess([rick], query: 'rick', isRefreshing: true),
         const CharactersLoadSuccess([rick, rick], query: 'rick'),
       ],
     );
