@@ -1,60 +1,40 @@
 import 'package:flutter/material.dart';
-import 'package:graphql/client.dart';
-import 'package:mobx_graphql/products/presentation/products_store.dart';
-import 'package:mobx_graphql/products/views/products_page.dart';
+import 'package:hive_ce_flutter/hive_flutter.dart';
 
-import 'core/data/api/hive_db.dart';
-import 'core/data/local/products_local_store.dart';
-import 'core/data/remote/products_remote_store.dart';
-import 'core/domain/repositories/products_repository.dart';
+import 'characters/presentation/characters_store.dart';
+import 'characters/views/characters_page.dart';
+import 'core/data/local/characters_local_store.dart';
+import 'core/data/api/rick_and_morty_api.dart';
+import 'core/data/remote/characters_remote_store.dart';
+import 'core/domain/repositories/characters_repository.dart';
 
-void main() {
-  final httpLink = HttpLink(
-    'https://example.com/graphql',
-  );
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Hive.initFlutter();
+  final box = await Hive.openBox<String>(HiveCharactersLocalStore.boxName);
 
-  final graphQlClient = GraphQLClient(
-    link: httpLink,
-    cache: GraphQLCache(),
+  // Wire the layers together, from the data sources up to the store.
+  final repository = LiveCharactersRepository(
+    remoteStore: GraphQLCharactersRemoteStore(RickAndMortyApi.createClient()),
+    localStore: HiveCharactersLocalStore(box),
   );
-  final hiveDb = HiveDb();
-  final productsRemoteStore = LiveProductRemoteStore(
-    graphQlClient,
-  );
-  final productsLocalStore = LiveProductsLocalStore(
-    hiveDb: hiveDb,
-  );
-  final productsRepository = LiveProductsRepository(
-    remoteStore: productsRemoteStore,
-    localStore: productsLocalStore,
-  );
-  final productsStore = ProductsStore(
-    productsRepository: productsRepository,
-  );
+  final store = CharactersStore(repository: repository);
 
-  runApp(MyApp(
-    productsStore: productsStore,
-  ));
+  runApp(App(store: store));
 }
 
-class MyApp extends StatelessWidget {
-  final ProductsStore productsStore;
+class App extends StatelessWidget {
+  const App({super.key, required this.store});
 
-  const MyApp({
-    super.key,
-    required this.productsStore,
-  });
+  final CharactersStore store;
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Mobx',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
-      home: ProductsPage(
-        productsStore: productsStore,
-      ),
+      title: 'MobX + GraphQL',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(colorSchemeSeed: const Color(0xFF0175C2)),
+      home: CharactersPage(title: 'MobX + GraphQL', store: store),
     );
   }
 }

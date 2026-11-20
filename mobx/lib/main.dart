@@ -1,56 +1,40 @@
-import 'package:example_mobx/core/data/api/backend_api.dart';
-import 'package:example_mobx/core/data/api/hive_db.dart';
-import 'package:example_mobx/core/data/remote/products_remote_store.dart';
-import 'package:example_mobx/products/presentation/products_store.dart';
-import 'package:example_mobx/products/views/products_page.dart';
 import 'package:flutter/material.dart';
+import 'package:hive_ce_flutter/hive_flutter.dart';
+import 'package:http/http.dart' as http;
 
-import 'core/data/api/firebase_api.dart';
-import 'core/data/local/products_local_store.dart';
-import 'core/domain/repositories/products_repository.dart';
+import 'characters/presentation/characters_store.dart';
+import 'characters/views/characters_page.dart';
+import 'core/data/local/characters_local_store.dart';
+import 'core/data/remote/characters_remote_store.dart';
+import 'core/domain/repositories/characters_repository.dart';
 
-void main() {
-  final firebaseApi = FirebaseApi();
-  final backendApi = BackendApiV1();
-  final hiveDb = HiveDb();
-  final productsRemoteStore = LiveProductRemoteStore(
-    backendApi: backendApi,
-    firebaseApi: firebaseApi,
-  );
-  final productsLocalStore = LiveProductsLocalStore(
-    hiveDb: hiveDb,
-  );
-  final productsRepository = LiveProductsRepository(
-    remoteStore: productsRemoteStore,
-    localStore: productsLocalStore,
-  );
-  final productsStore = ProductsStore(
-    productsRepository: productsRepository,
-  );
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Hive.initFlutter();
+  final box = await Hive.openBox<String>(HiveCharactersLocalStore.boxName);
 
-  runApp(MyApp(
-    productsStore: productsStore,
-  ));
+  // Wire the layers together, from the data sources up to the store.
+  final repository = LiveCharactersRepository(
+    remoteStore: RestCharactersRemoteStore(http.Client()),
+    localStore: HiveCharactersLocalStore(box),
+  );
+  final store = CharactersStore(repository: repository);
+
+  runApp(App(store: store));
 }
 
-class MyApp extends StatelessWidget {
-  final ProductsStore productsStore;
+class App extends StatelessWidget {
+  const App({super.key, required this.store});
 
-  const MyApp({
-    super.key,
-    required this.productsStore,
-  });
+  final CharactersStore store;
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Mobx',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
-      home: ProductsPage(
-        productsStore: productsStore,
-      ),
+      title: 'MobX + REST',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(colorSchemeSeed: const Color(0xFF0175C2)),
+      home: CharactersPage(title: 'MobX + REST', store: store),
     );
   }
 }
