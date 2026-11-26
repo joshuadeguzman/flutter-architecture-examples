@@ -11,6 +11,7 @@ abstract interface class CharactersRepository {
   /// the network and caches them.
   ///
   /// Set [forceRefresh] to skip the cache, for example on pull to refresh.
+  /// Throws if the network request fails.
   Future<List<Character>> getCharacters({bool forceRefresh = false});
 
   /// Searches characters by name. Always uses the network, since search
@@ -30,19 +31,27 @@ class LiveCharactersRepository implements CharactersRepository {
   @override
   Future<List<Character>> getCharacters({bool forceRefresh = false}) async {
     if (!forceRefresh) {
-      final cached = await localStore.getCharacters();
+      final cached = await _readCache();
       if (cached.isNotEmpty) return cached;
     }
 
+    // If this fails, the error reaches the caller, so a failed refresh is
+    // reported instead of quietly showing the same cached list.
+    final fresh = await remoteStore.getCharacters();
     try {
-      final fresh = await remoteStore.getCharacters();
       await localStore.saveCharacters(fresh);
-      return fresh;
     } catch (_) {
-      // Offline or the API is down. Fall back to the cache if we have one.
-      final cached = await localStore.getCharacters();
-      if (cached.isNotEmpty) return cached;
-      rethrow;
+      // The cache is only a speed-up. Failing to write it isn't fatal.
+    }
+    return fresh;
+  }
+
+  Future<List<Character>> _readCache() async {
+    try {
+      return await localStore.getCharacters();
+    } catch (_) {
+      // A broken cache counts as an empty one.
+      return const [];
     }
   }
 

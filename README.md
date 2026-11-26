@@ -35,7 +35,7 @@ Every example has the same four layers. Each layer only calls the next one. The 
 | Domain | The repository. Decides whether to use the cache or the network. | `core/domain` |
 | Data | Talks to the API and to local storage. | `core/data` |
 
-The repository is the only place that knows about caching. It returns cached characters if it has any, and otherwise fetches them and saves them. If the network fails, it falls back to the cache.
+The repository is the only place that knows about caching. It returns cached characters if it has any, and otherwise fetches them and saves them. In the MobX and Riverpod examples, it falls back to the cache if the network fails. The Bloc examples report a failed refresh instead, so the screen can say so.
 
 ## Project structure
 
@@ -140,10 +140,12 @@ Each event picks how it handles overlapping events of the same type, using [`blo
 | Event | Transformer | Why |
 |---|---|---|
 | `CharactersSearchChanged` | Debounce, then `restartable` | Wait until the user stops typing, then cancel any older search. |
-| `CharactersRefreshed` | `droppable` | Ignore extra pulls while a refresh runs. |
 | `CharactersStarted` | `droppable` | Ignore extra taps on retry. |
+| `CharactersRefreshed` | Default (concurrent) | A newer pull replaces an older one. See below. |
 
-A transformer only controls events of its own type, so a search can still run while a refresh does. The bloc handles that itself: a refresh result is dropped if a search changed the screen while it ran.
+A transformer only controls events of its own type, so a search can still run while a refresh or a retry does. The bloc handles that itself. Every load takes a number, and only the newest load may change the screen, so a slow refresh or first load never replaces a newer search.
+
+Pull to refresh passes a `Completer` in `CharactersRefreshed`. The bloc completes it when the refresh is over, even if a newer load replaced it, so the spinner always stops. If the refresh fails, the list stays and a snackbar says so.
 
 A `BlocObserver` logs every transition in debug builds, so you can see which event caused each change.
 

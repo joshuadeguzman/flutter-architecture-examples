@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:characters_repository/characters_repository.dart';
 import 'package:example_bloc_advanced/characters/bloc/characters_bloc.dart';
 import 'package:example_bloc_advanced/characters/widgets/widgets.dart';
@@ -23,13 +25,12 @@ class CharactersPage extends StatelessWidget {
 class CharactersView extends StatelessWidget {
   const CharactersView({super.key});
 
-  Future<void> _refresh(BuildContext context) async {
-    final bloc = context.read<CharactersBloc>()
-      ..add(const CharactersRefreshed());
-    // Keep the spinner until the refresh finishes or something replaces it.
-    await bloc.stream.firstWhere(
-      (state) => state.status != CharactersStatus.refreshing,
-    );
+  Future<void> _refresh(BuildContext context) {
+    final done = Completer<void>();
+    context.read<CharactersBloc>().add(CharactersRefreshed(completer: done));
+    // The spinner shows until the bloc completes this. A failed refresh
+    // shows a snackbar through the BlocListener below.
+    return done.future;
   }
 
   @override

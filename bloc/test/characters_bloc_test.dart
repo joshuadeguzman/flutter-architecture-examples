@@ -98,6 +98,38 @@ void main() {
     ],
   );
 
+  blocTest<CharactersBloc, CharactersState>(
+    'a slow CharactersStarted does not replace a newer search',
+    setUp: () {
+      final slow = Completer<List<Character>>();
+      when(() => repository.getCharacters()).thenAnswer((_) {
+        Future<void>.delayed(debounce * 4, () => slow.complete([rick, morty]));
+        return slow.future;
+      });
+      when(() => repository.searchCharacters('rick'))
+          .thenAnswer((_) async => [rick]);
+    },
+    build: build,
+    act: (bloc) => bloc
+      ..add(const CharactersStarted())
+      ..add(const CharactersSearchChanged('rick')),
+    wait: debounce * 6,
+    expect: () => [
+      const CharactersLoadInProgress(),
+      const CharactersLoadSuccess([rick], query: 'rick'),
+    ],
+  );
+
+  blocTest<CharactersBloc, CharactersState>(
+    'skips a search for the query already shown',
+    build: build,
+    seed: () => const CharactersLoadSuccess([rick], query: 'rick'),
+    act: (bloc) => bloc.add(const CharactersSearchChanged('rick ')),
+    wait: debounce * 2,
+    expect: () => <CharactersState>[],
+    verify: (_) => verifyNever(() => repository.searchCharacters(any())),
+  );
+
   group('CharactersRefreshed', () {
     late Completer<List<Character>> pending;
 
@@ -129,26 +161,74 @@ void main() {
       ],
     );
 
-    blocTest<CharactersBloc, CharactersState>(
-      'ignores a second refresh while one is running',
-      setUp: () {
-        pending = Completer();
-        when(() => repository.getCharacters(forceRefresh: true))
-            .thenAnswer((_) => pending.future);
-      },
-      build: build,
-      seed: () => const CharactersLoadSuccess([rick]),
-      act: (bloc) async {
-        bloc
-          ..add(const CharactersRefreshed())
-          ..add(const CharactersRefreshed());
-        await Future<void>.delayed(Duration.zero);
-        pending.complete([]);
-      },
-      verify: (_) {
-        verify(() => repository.getCharacters(forceRefresh: true)).called(1);
-      },
-    );
+    test('completes the completer when it finishes', () async {
+      when(() => repository.getCharacters(forceRefresh: true))
+          .thenAnswer((_) async => [morty]);
+      final bloc = build()..emit(const CharactersLoadSuccess([rick]));
+      final done = Completer<void>();
+
+      bloc.add(CharactersRefreshed(completer: done));
+
+      await expectLater(done.future, completes);
+      expect(bloc.state, const CharactersLoadSuccess([morty]));
+      await bloc.close();
+    });
+
+    test('keeps the list and reports a failed refresh', () async {
+      when(() => repository.getCharacters(forceRefresh: true))
+          .thenThrow(Exception('offline'));
+      final bloc = build()..emit(const CharactersLoadSuccess([rick]));
+      final done = Completer<void>();
+
+      bloc.add(CharactersRefreshed(completer: done));
+
+      await expectLater(done.future, throwsA(isA<RefreshFailure>()));
+      expect(bloc.state, const CharactersLoadSuccess([rick]));
+      await bloc.close();
+    });
+
+    test('a second refresh wins, and both spinners stop', () async {
+      final first = Completer<List<Character>>();
+      final second = Completer<List<Character>>();
+      final answers = [first, second];
+      when(() => repository.getCharacters(forceRefresh: true))
+          .thenAnswer((_) => answers.removeAt(0).future);
+      final bloc = build()..emit(const CharactersLoadSuccess([rick]));
+      final doneA = Completer<void>();
+      final doneB = Completer<void>();
+
+      bloc
+        ..add(CharactersRefreshed(completer: doneA))
+        ..add(CharactersRefreshed(completer: doneB));
+      await Future<void>.delayed(Duration.zero);
+      second.complete([morty]);
+      await doneB.future;
+      first.complete([rick, rick]);
+      await doneA.future;
+
+      expect(bloc.state, const CharactersLoadSuccess([morty]));
+      await bloc.close();
+    });
+
+    test('stops the spinner when a search replaces it', () async {
+      final pending = Completer<List<Character>>();
+      when(() => repository.getCharacters(forceRefresh: true))
+          .thenAnswer((_) => pending.future);
+      when(() => repository.searchCharacters('rick'))
+          .thenAnswer((_) async => [rick]);
+      final bloc = build()..emit(const CharactersLoadSuccess([rick, morty]));
+      final done = Completer<void>();
+
+      bloc
+        ..add(CharactersRefreshed(completer: done))
+        ..add(const CharactersSearchChanged('rick'));
+      await Future<void>.delayed(debounce * 3);
+      pending.complete([rick, morty]);
+
+      await expectLater(done.future, completes);
+      expect(bloc.state, const CharactersLoadSuccess([rick], query: 'rick'));
+      await bloc.close();
+    });
 
     blocTest<CharactersBloc, CharactersState>(
       'is dropped when a search finishes while it runs',

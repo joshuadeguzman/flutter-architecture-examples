@@ -32,7 +32,21 @@ class CharactersView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(title)),
-      body: BlocBuilder<CharactersCubit, CharactersState>(
+      body: BlocConsumer<CharactersCubit, CharactersState>(
+        // A failed refresh keeps the list on screen, so say that it failed.
+        listenWhen: (previous, current) =>
+            previous.status != current.status &&
+            current.status == CharactersStatus.failure &&
+            current.characters.isNotEmpty,
+        listener: (context, state) {
+          ScaffoldMessenger.of(context)
+            ..hideCurrentSnackBar()
+            ..showSnackBar(
+              const SnackBar(
+                content: Text("Couldn't refresh. Try again later."),
+              ),
+            );
+        },
         builder: (context, state) {
           if (state.characters.isEmpty) {
             switch (state.status) {

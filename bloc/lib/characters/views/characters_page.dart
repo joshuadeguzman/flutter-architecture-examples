@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -31,13 +33,19 @@ class CharactersView extends StatelessWidget {
   final String title;
 
   Future<void> _refresh(BuildContext context) async {
-    final bloc = context.read<CharactersBloc>();
-    if (bloc.state is! CharactersLoadSuccess) return;
-    bloc.add(const CharactersRefreshed());
-    // Keep the spinner until the refresh finishes or something replaces it.
-    await bloc.stream.firstWhere(
-      (state) => state is! CharactersLoadSuccess || !state.isRefreshing,
-    );
+    final messenger = ScaffoldMessenger.of(context);
+    final done = Completer<void>();
+    context.read<CharactersBloc>().add(CharactersRefreshed(completer: done));
+    try {
+      // The spinner shows until the bloc completes this.
+      await done.future;
+    } on RefreshFailure {
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(content: Text("Couldn't refresh. Try again later.")),
+        );
+    }
   }
 
   @override

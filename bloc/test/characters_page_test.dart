@@ -87,4 +87,18 @@ void main() {
     expect(find.text('No characters match "nobody".'), findsOneWidget);
     expect(repository.searches, ['morty', 'nobody']);
   });
+
+  testWidgets('a failed refresh keeps the list and says so', (tester) async {
+    final repository = FakeRepository();
+    await tester.pumpWidget(app(repository));
+    await tester.pumpAndSettle();
+
+    repository.fail = true;
+    await tester.fling(find.text('Rick Sanchez'), const Offset(0, 400), 1000);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Rick Sanchez'), findsOneWidget);
+    expect(find.text("Couldn't refresh. Try again later."), findsOneWidget);
+    expect(find.byType(RefreshProgressIndicator), findsNothing);
+  });
 }

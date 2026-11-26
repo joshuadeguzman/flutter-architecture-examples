@@ -20,28 +20,37 @@ class CharactersRepository {
   /// Returns cached characters if there are any. Otherwise fetches them and
   /// caches them.
   ///
-  /// Set [forceRefresh] to skip the cache. If the network fails and there is
-  /// a cache, the cached characters are returned instead.
+  /// Set [forceRefresh] to skip the cache. Throws if the network request
+  /// fails, so a failed refresh is reported instead of quietly returning the
+  /// same cached characters.
   Future<List<Character>> getCharacters({bool forceRefresh = false}) async {
     if (!forceRefresh) {
-      final cached = await _cache.read();
+      final cached = await _readCache();
       if (cached.isNotEmpty) return cached;
     }
 
+    final characters = _toDomain(await _apiClient.getCharacters());
     try {
-      final characters = _toDomain(await _apiClient.getCharacters());
       await _cache.write(characters);
-      return characters;
-    } on Exception {
-      final cached = await _cache.read();
-      if (cached.isNotEmpty) return cached;
-      rethrow;
+    } on Object {
+      // The cache is only a speed-up. Failing to write it, for example with
+      // a HiveError, isn't fatal.
     }
+    return characters;
   }
 
   /// Searches characters by name. Search results are not cached.
   Future<List<Character>> searchCharacters(String name) async {
     return _toDomain(await _apiClient.getCharacters(name: name));
+  }
+
+  Future<List<Character>> _readCache() async {
+    try {
+      return await _cache.read();
+    } on Object {
+      // A broken cache counts as an empty one.
+      return const [];
+    }
   }
 
   List<Character> _toDomain(List<ApiCharacter> characters) => [

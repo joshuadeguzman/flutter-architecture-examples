@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:bloc_concurrency/bloc_concurrency.dart';
 import 'package:characters_repository/characters_repository.dart';
 import 'package:equatable/equatable.dart';
@@ -21,7 +23,7 @@ class CharactersBloc extends Bloc<CharactersEvent, CharactersState> {
   }) : _charactersRepository = charactersRepository,
        super(const CharactersState()) {
     on<CharactersStarted>(_onStarted, transformer: droppable());
-    on<CharactersRefreshed>(_onRefreshed, transformer: droppable());
+    on<CharactersRefreshed>(_onRefreshed);
     on<CharactersSearchChanged>(
       _onSearchChanged,
       transformer: debounceRestartable(searchDebounce),
@@ -30,31 +32,34 @@ class CharactersBloc extends Bloc<CharactersEvent, CharactersState> {
 
   final CharactersRepository _charactersRepository;
 
+  /// Counts loads. Each transformer only controls its own event type, so a
+  /// search can run while a refresh or a retry does. Every load takes the
+  /// next number, and only the newest load may change the screen.
+  var _latestLoad = 0;
+
   Future<void> _onStarted(
     CharactersStarted event,
     Emitter<CharactersState> emit,
   ) async {
+    final load = ++_latestLoad;
     emit(state.copyWith(status: CharactersStatus.loading));
-    await _load(emit, query: state.query);
+    final next = await _load(query: state.query);
+    if (load == _latestLoad) emit(next);
   }
 
   Future<void> _onRefreshed(
     CharactersRefreshed event,
     Emitter<CharactersState> emit,
   ) async {
-    // Mark the refresh as running. This also makes sure the final state is
-    // new, so the view always sees the refresh finish, even when the data
-    // didn't change.
-    emit(state.copyWith(status: CharactersStatus.refreshing));
-    await _load(
-      emit,
-      query: state.query,
-      forceRefresh: true,
-      // Each transformer only controls its own event type, so a search can
-      // run while a refresh does. Drop the refresh result if anything else
-      // changed the screen in the meantime.
-      shouldEmit: () => state.status == CharactersStatus.refreshing,
-    );
+    try {
+      final load = ++_latestLoad;
+      emit(state.copyWith(status: CharactersStatus.refreshing));
+      final next = await _load(query: state.query, forceRefresh: true);
+      if (load == _latestLoad) emit(next);
+    } finally {
+      // Always stop the spinner, even if a newer load replaced this one.
+      event.completer?.complete();
+    }
   }
 
   Future<void> _onSearchChanged(
@@ -62,39 +67,45 @@ class CharactersBloc extends Bloc<CharactersEvent, CharactersState> {
     Emitter<CharactersState> emit,
   ) async {
     final query = event.query.trim();
+    // Typing a space after "rick" doesn't need a new search.
+    if (query == state.query && state.status == CharactersStatus.success) {
+      return;
+    }
+
+    final load = ++_latestLoad;
     emit(state.copyWith(status: CharactersStatus.loading, query: query));
     // A failed search clears the list, so old results don't show under the
     // new search text.
-    await _load(emit, query: query, keepCharactersOnFailure: false);
+    final next = await _load(query: query, keepCharactersOnFailure: false);
+    if (load == _latestLoad) emit(next);
   }
 
-  Future<void> _load(
-    Emitter<CharactersState> emit, {
+  Future<CharactersState> _load({
     required String query,
     bool forceRefresh = false,
     bool keepCharactersOnFailure = true,
-    bool Function()? shouldEmit,
   }) async {
-    CharactersState next;
     try {
       final characters = query.isEmpty
           ? await _charactersRepository.getCharacters(
               forceRefresh: forceRefresh,
             )
           : await _charactersRepository.searchCharacters(query);
-      next = state.copyWith(
+      return state.copyWith(
         status: CharactersStatus.success,
         characters: characters,
         query: query,
       );
-    } on Exception {
+    } on Object catch (error, stackTrace) {
+      // Catch errors too, not only exceptions, so the screen never stays
+      // stuck on a spinner. addError reports it to the BlocObserver.
+      addError(error, stackTrace);
       // Keep the current characters so the screen can still show them.
-      next = state.copyWith(
+      return state.copyWith(
         status: CharactersStatus.failure,
         query: query,
         characters: keepCharactersOnFailure ? null : const [],
       );
     }
-    if (shouldEmit == null || shouldEmit()) emit(next);
   }
 }

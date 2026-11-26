@@ -62,12 +62,30 @@ void main() {
       verify(() => api.getCharacters()).called(1);
     });
 
-    test('falls back to the cache when the API fails', () async {
+    test('a failed refresh throws, even with a cache', () async {
       when(() => cache.read()).thenAnswer((_) async => [rick]);
       when(() => api.getCharacters())
           .thenThrow(const CharactersRequestFailure(500));
 
-      expect(await repository.getCharacters(forceRefresh: true), [rick]);
+      await expectLater(
+        repository.getCharacters(forceRefresh: true),
+        throwsA(isA<CharactersRequestFailure>()),
+      );
+    });
+
+    test('a cache that cannot be written does not fail the load', () async {
+      when(() => cache.read()).thenAnswer((_) async => []);
+      when(() => cache.write(any())).thenThrow(StateError('box is closed'));
+      when(() => api.getCharacters()).thenAnswer((_) async => [apiRick]);
+
+      expect(await repository.getCharacters(), [rick]);
+    });
+
+    test('a cache that cannot be read counts as empty', () async {
+      when(() => cache.read()).thenThrow(StateError('box is closed'));
+      when(() => api.getCharacters()).thenAnswer((_) async => [apiRick]);
+
+      expect(await repository.getCharacters(), [rick]);
     });
 
     test('rethrows when the API fails and there is no cache', () async {

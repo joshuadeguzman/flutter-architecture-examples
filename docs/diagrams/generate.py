@@ -222,7 +222,7 @@ state_diagram(
     "CharactersBloc", "Events in, sealed states out", "on<CharactersSearchChanged>",
     "Adds events, switches on state", "bloc.add(CharactersRefreshed())",
     "RestCharactersRemoteStore", "GET /api/character?name=", "REST",
-    "Search is debounced and restartable. Refresh is droppable, so extra pulls are ignored.",
+    "Search is debounced and restartable. Only the newest load changes the screen.",
     calls_label="events",
 )
 
