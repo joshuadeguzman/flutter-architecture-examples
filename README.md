@@ -1,16 +1,26 @@
 # Flutter Architecture Examples
 
-The same small app built three ways, so you can compare how each architecture is put together.
+The same small app built six ways, so you can compare how each architecture is put together.
 
-Each example shows a list of characters from the free [Rick and Morty API](https://rickandmortyapi.com). It caches the list on the device, works offline once loaded, and supports pull to refresh. Only the state management and the API style change between them.
+Each example shows a list of characters from the free [Rick and Morty API](https://rickandmortyapi.com). It caches the list on the device, works offline once loaded, and supports pull to refresh. The examples differ in state management and API style. The `bloc` and `bloc_advanced` examples also add search, and `bloc_advanced` splits its layers into packages.
 
 | Example | State management | API | Wiring | Code generation |
 |---|---|---|---|---|
 | [`mobx`](mobx) | MobX | REST | Constructor injection in `main.dart` | Yes, for stores |
 | [`mobx_graphql`](mobx_graphql) | MobX | GraphQL | Constructor injection in `main.dart` | Yes, for stores |
 | [`riverpod`](riverpod) | Riverpod 3 | REST | Providers | No |
+| [`bloc_cubit`](bloc_cubit) | Bloc: `Cubit` | REST | `RepositoryProvider` and `BlocProvider` | No |
+| [`bloc`](bloc) | Bloc: events and states | REST, with search | `RepositoryProvider` and `BlocProvider` | No |
+| [`bloc_advanced`](bloc_advanced) | Bloc for bigger teams | REST, with search | Separate Dart packages, `RepositoryProvider` and `BlocProvider` | No |
 
-All three use Flutter 3.47 and Dart 3.13.
+All examples use Flutter 3.47 and Dart 3.13.
+
+### Which one should I pick?
+
+- **Small app or a first project:** `riverpod` or `bloc_cubit`. Both are short and need no code generation.
+- **You want every state change to have a named reason, or you need debounce and other event control:** `bloc`.
+- **Several teams work in one app:** `bloc_advanced`. Each layer is a package with its own tests, so teams can work on one part without touching the others.
+- **Your team already knows MobX:** `mobx` or `mobx_graphql`.
 
 ## The layers
 
@@ -25,7 +35,7 @@ Every example has the same four layers. Each layer only calls the next one. The 
 | Domain | The repository. Decides whether to use the cache or the network. | `core/domain` |
 | Data | Talks to the API and to local storage. | `core/data` |
 
-The repository is the only place that knows about caching. It returns cached characters if it has any, and otherwise fetches them and saves them. If the network fails, it falls back to the cache.
+The repository is the only place that knows about caching. It returns cached characters if it has any, and otherwise fetches them and saves them. In the MobX and Riverpod examples, it falls back to the cache if the network fails. The Bloc examples report a failed refresh instead, so the screen can say so.
 
 ## Project structure
 
@@ -42,9 +52,26 @@ lib
 │   │   └── repositories # CharactersRepository
 │   └── providers.dart   # Riverpod only
 └── characters
-    ├── presentation     # CharactersStore (MobX) or CharactersNotifier (Riverpod)
+    ├── presentation     # The store, notifier, cubit or bloc
     ├── views            # CharactersPage
     └── widgets          # CharacterTile
+```
+
+`bloc_advanced` is laid out the way larger teams usually split a Bloc app:
+
+```
+bloc_advanced
+├── packages
+│   ├── rick_and_morty_api     # Data: HTTP and JSON, returns ApiCharacter
+│   └── characters_repository  # Domain: Character, cache rules, CharactersCache
+└── lib
+    ├── bootstrap.dart         # BlocObserver, error logging, dependencies
+    ├── app                    # App, AppBlocObserver
+    ├── cache                  # HiveCharactersCache
+    └── characters             # One folder per feature
+        ├── bloc               # CharactersBloc, with events and state as part files
+        ├── view               # CharactersPage and CharactersView
+        └── widgets
 ```
 
 ## MobX + REST
@@ -84,6 +111,65 @@ ProviderScope(
 
 See [`riverpod`](riverpod).
 
+## Bloc: Cubit
+
+![Bloc with a Cubit](.github/images/bloc_cubit.png)
+
+The simplest way to use the bloc package. `CharactersCubit` has a plain `load` method that calls `emit`. The state is one class with a `status` enum, so the list stays on screen while a refresh runs. The bloc docs suggest starting with a `Cubit` and moving to a `Bloc` when you need events.
+
+```dart
+Future<void> load({bool forceRefresh = false}) async {
+  if (state.status == CharactersStatus.loading) return;
+  emit(state.copyWith(status: CharactersStatus.loading));
+  // ...
+}
+```
+
+![Bloc with a Cubit on iOS and Android](.github/images/screenshots/bloc_cubit.png)
+
+See [`bloc_cubit`](bloc_cubit).
+
+## Bloc: events
+
+![Bloc with events](.github/images/bloc.png)
+
+`CharactersBloc` turns events into states. Events are named in the past tense (`CharactersStarted`, `CharactersRefreshed`, `CharactersSearchChanged`), and the state is a `sealed` class, so the view's `switch` must handle every state.
+
+Each event picks how it handles overlapping events of the same type, using [`bloc_concurrency`](https://pub.dev/packages/bloc_concurrency):
+
+| Event | Transformer | Why |
+|---|---|---|
+| `CharactersSearchChanged` | Debounce, then `restartable` | Wait until the user stops typing, then cancel any older search. |
+| `CharactersStarted` | `droppable` | Ignore extra taps on retry. |
+| `CharactersRefreshed` | Default (concurrent) | A newer pull replaces an older one. See below. |
+
+A transformer only controls events of its own type, so a search can still run while a refresh or a retry does. The bloc handles that itself. Every load takes a number, and only the newest load may change the screen, so a slow refresh or first load never replaces a newer search.
+
+Pull to refresh passes a `Completer` in `CharactersRefreshed`. The bloc completes it when the refresh is over, even if a newer load replaced it, so the spinner always stops. If the refresh fails, the list stays and a snackbar says so.
+
+A `BlocObserver` logs every transition in debug builds, so you can see which event caused each change.
+
+![Bloc with events on iOS and Android](.github/images/screenshots/bloc.png)
+
+See [`bloc`](bloc).
+
+## Bloc: bigger teams
+
+![Bloc for bigger teams](.github/images/bloc_advanced.png)
+
+The same features as `bloc`, set up for a large codebase:
+
+- **Packages per layer.** `rick_and_morty_api` only knows HTTP and returns `ApiCharacter`. `characters_repository` turns those into its own `Character` model and owns the cache rules. Each has its own tests and can be versioned on its own.
+- **The cache is an interface.** The repository package defines `CharactersCache`, and the app provides `HiveCharactersCache`, so the packages have no Flutter or database dependency.
+- **Feature folders.** Everything for the characters screen lives in `lib/characters`.
+- **A status enum state.** The screen keeps showing the list while it loads or refreshes. If a refresh fails, the list stays and a snackbar says so.
+- **Page and view are split.** `CharactersPage` provides the bloc, and `CharactersView` only renders. View tests use a `MockBloc`, so they don't run any bloc logic.
+- **Strict lints** with [`very_good_analysis`](https://pub.dev/packages/very_good_analysis).
+
+![Bloc for bigger teams on iOS and Android](.github/images/screenshots/bloc_advanced.png)
+
+See [`bloc_advanced`](bloc_advanced).
+
 ## Running the examples
 
 You need Flutter 3.47 or later.
@@ -91,7 +177,7 @@ You need Flutter 3.47 or later.
 ```bash
 make pubs                  # get dependencies for every example
 make run app=riverpod      # run one example
-make check                 # analyze and test every example
+make check                 # analyze and test every example and package
 make codegen app=mobx      # regenerate MobX code after changing a store
 ```
 
@@ -99,14 +185,28 @@ No API key is needed.
 
 ## Tests
 
-Each example has the same tests:
+Every example tests:
 
-- `characters_repository_test.dart` checks the caching rules with a fake remote and local store.
-- `characters_page_test.dart` checks that the page shows the characters, and shows an error with a working retry button.
+- The repository's caching rules, with a fake or mocked remote and local store.
+- The remote store's parsing and error handling, with a mock HTTP client.
+- The page: it shows the characters, shows an error with a working retry button, and skips the cache on pull to refresh.
+
+The Bloc examples also test their cubit or bloc with [`bloc_test`](https://pub.dev/packages/bloc_test):
+
+- `bloc_cubit`: loading, failure, keeping the list during a refresh, and ignoring a second load.
+- `bloc` and `bloc_advanced`: the debounced search, the ignored extra refresh, and a refresh that a newer search replaces.
+
+`bloc_advanced` tests each package with `dart test`, its view with a mock bloc, and its Hive cache with a real box in a temp folder.
 
 ## Diagrams
 
 The diagrams are generated from [`docs/diagrams/generate.py`](docs/diagrams/generate.py). To update them, edit that file and run `make diagrams`. This needs macOS, Python 3 and Google Chrome.
+
+## Further reading
+
+- [Bloc architecture](https://bloclibrary.dev/architecture/), [naming conventions](https://bloclibrary.dev/naming-conventions/) and [modeling state](https://bloclibrary.dev/modeling-state/)
+- [Very Good Flutter Architecture](https://verygood.ventures/blog/very-good-flutter-architecture)
+- [Riverpod](https://riverpod.dev) and [MobX](https://mobx.netlify.app)
 
 ## Credits
 
