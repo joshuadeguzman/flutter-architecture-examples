@@ -1,9 +1,9 @@
 import 'package:example_bloc/characters/views/characters_page.dart';
 import 'package:example_bloc/core/data/models/character.dart';
 import 'package:example_bloc/core/domain/repositories/characters_repository.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'characters_repository_test.dart' show rick, morty;
 

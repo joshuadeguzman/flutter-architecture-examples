@@ -2,8 +2,8 @@ import 'package:example_mobx_graphql/characters/presentation/characters_store.da
 import 'package:example_mobx_graphql/characters/views/characters_page.dart';
 import 'package:example_mobx_graphql/core/data/models/character.dart';
 import 'package:example_mobx_graphql/core/domain/repositories/characters_repository.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'characters_repository_test.dart' show rick, morty;
 

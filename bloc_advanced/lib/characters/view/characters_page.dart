@@ -3,8 +3,8 @@ import 'dart:async';
 import 'package:characters_repository/characters_repository.dart';
 import 'package:example_bloc_advanced/characters/bloc/characters_bloc.dart';
 import 'package:example_bloc_advanced/characters/widgets/widgets.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Provides the bloc. Kept apart from [CharactersView] so the view can be
 /// tested with a mock bloc.
