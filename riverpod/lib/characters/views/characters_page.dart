@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../presentation/characters_notifier.dart';
 import '../widgets/character_tile.dart';
@@ -22,7 +22,7 @@ class CharactersPage extends ConsumerWidget {
           onRetry: () => ref.invalidate(charactersProvider),
         ),
         data: (characters) => RefreshIndicator(
-          onRefresh: () => ref.read(charactersProvider.notifier).refresh(),
+          onRefresh: () => _refresh(context, ref),
           child: ListView.builder(
             itemCount: characters.length,
             itemBuilder: (context, index) =>
@@ -31,6 +31,20 @@ class CharactersPage extends ConsumerWidget {
         ),
       ),
     );
+  }
+}
+
+Future<void> _refresh(BuildContext context, WidgetRef ref) async {
+  final messenger = ScaffoldMessenger.of(context);
+  try {
+    await ref.read(charactersProvider.notifier).refresh();
+  } catch (_) {
+    // The list stays on screen, so say that the refresh failed.
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(content: Text("Couldn't refresh. Try again later.")),
+      );
   }
 }
 

@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:hive_ce_flutter/hive_flutter.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'characters/presentation/characters_store.dart';
 import 'characters/views/characters_page.dart';

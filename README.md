@@ -35,7 +35,7 @@ Every example has the same four layers. Each layer only calls the next one. The 
 | Domain | The repository. Decides whether to use the cache or the network. | `core/domain` |
 | Data | Talks to the API and to local storage. | `core/data` |
 
-The repository is the only place that knows about caching. It returns cached characters if it has any, and otherwise fetches them and saves them. In the MobX and Riverpod examples, it falls back to the cache if the network fails. The Bloc examples report a failed refresh instead, so the screen can say so.
+The repository is the only place that knows about caching. It returns cached characters if it has any, and otherwise fetches them and saves them. If a refresh fails, it throws instead of quietly returning the cache, so the screen keeps the list and says the refresh failed.
 
 ## Project structure
 
@@ -172,7 +172,7 @@ See [`bloc_advanced`](bloc_advanced).
 
 ## Running the examples
 
-You need Flutter 3.47 or later.
+You need Flutter 3.47 or later. Material widgets come from the [`material_ui`](https://pub.dev/packages/material_ui) package, since Flutter 3.50 deprecates `package:flutter/material.dart`.
 
 ```bash
 make pubs                  # get dependencies for every example
@@ -189,14 +189,16 @@ Every example tests:
 
 - The repository's caching rules, with a fake or mocked remote and local store.
 - The remote store's parsing and error handling, with a mock HTTP client.
-- The page: it shows the characters, shows an error with a working retry button, and skips the cache on pull to refresh.
+- The page: it shows the characters, shows an error with a working retry button, skips the cache on pull to refresh, and keeps the list with a message when a refresh fails.
 
 The Bloc examples also test their cubit or bloc with [`bloc_test`](https://pub.dev/packages/bloc_test):
 
 - `bloc_cubit`: loading, failure, keeping the list during a refresh, and ignoring a second load.
-- `bloc` and `bloc_advanced`: the debounced search, the ignored extra refresh, and a refresh that a newer search replaces.
+- `bloc` and `bloc_advanced`: the debounced search, a skipped search for the same text, overlapping loads where only the newest one wins, and a refresh that always finishes.
 
 `bloc_advanced` tests each package with `dart test`, its view with a mock bloc, and its Hive cache with a real box in a temp folder.
+
+CI runs `make check` on every pull request, with Flutter 3.47.5 and the latest stable release.
 
 ## Diagrams
 

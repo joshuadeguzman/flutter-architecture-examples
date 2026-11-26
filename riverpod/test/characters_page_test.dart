@@ -2,9 +2,9 @@ import 'package:example_riverpod/characters/views/characters_page.dart';
 import 'package:example_riverpod/core/data/models/character.dart';
 import 'package:example_riverpod/core/domain/repositories/characters_repository.dart';
 import 'package:example_riverpod/core/providers.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'characters_repository_test.dart' show rick, morty;
 
@@ -64,5 +64,19 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(repository.refreshes, [false, true]);
+  });
+
+  testWidgets('a failed refresh keeps the list and says so', (tester) async {
+    final repository = FakeRepository();
+    await tester.pumpWidget(app(repository));
+    await tester.pumpAndSettle();
+
+    repository.fail = true;
+    await tester.fling(find.text('Rick Sanchez'), const Offset(0, 400), 1000);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Rick Sanchez'), findsOneWidget);
+    expect(find.text("Couldn't refresh. Try again later."), findsOneWidget);
+    expect(find.byType(RefreshProgressIndicator), findsNothing);
   });
 }

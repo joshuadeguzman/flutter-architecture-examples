@@ -16,6 +16,7 @@ dependencies:
   flutter_bloc: ^9.1.1
   hive_ce: ^2.24.0
   hive_ce_flutter: ^2.6.0
+  material_ui: ^1.11.1
   rick_and_morty_api:
     path: packages/rick_and_morty_api
   stream_transform: ^2.1.2
