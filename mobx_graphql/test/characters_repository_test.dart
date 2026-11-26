@@ -37,12 +37,18 @@ class FakeRemoteStore implements CharactersRemoteStore {
 
 class FakeLocalStore implements CharactersLocalStore {
   List<Character> saved = [];
+  bool failReads = false;
+  bool failWrites = false;
 
   @override
-  Future<List<Character>> getCharacters() async => saved;
+  Future<List<Character>> getCharacters() async {
+    if (failReads) throw StateError('cache is broken');
+    return saved;
+  }
 
   @override
   Future<void> saveCharacters(List<Character> characters) async {
+    if (failWrites) throw StateError('disk is full');
     saved = characters;
   }
 }
@@ -87,13 +93,31 @@ void main() {
     expect(remote.calls, 1);
   });
 
-  test('falls back to the cache when the network fails', () async {
+  test('a failed refresh throws, even with a cache', () async {
     local.saved = [rick];
     remote.fail = true;
 
-    final result = await repository.getCharacters(forceRefresh: true);
+    await expectLater(
+      repository.getCharacters(forceRefresh: true),
+      throwsException,
+    );
+  });
 
-    expect(result.single.name, 'Rick Sanchez');
+  test('a cache that cannot be written does not fail the load', () async {
+    local.failWrites = true;
+
+    final result = await repository.getCharacters();
+
+    expect(result, hasLength(2));
+  });
+
+  test('a cache that cannot be read counts as empty', () async {
+    local.failReads = true;
+
+    final result = await repository.getCharacters();
+
+    expect(result, hasLength(2));
+    expect(remote.calls, 1);
   });
 
   test('throws when the network fails and there is no cache', () async {

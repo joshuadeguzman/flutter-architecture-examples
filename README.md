@@ -35,7 +35,7 @@ Every example has the same four layers. Each layer only calls the next one. The 
 | Domain | The repository. Decides whether to use the cache or the network. | `core/domain` |
 | Data | Talks to the API and to local storage. | `core/data` |
 
-The repository is the only place that knows about caching. It returns cached characters if it has any, and otherwise fetches them and saves them. In the MobX and Riverpod examples, it falls back to the cache if the network fails. The Bloc examples report a failed refresh instead, so the screen can say so.
+The repository is the only place that knows about caching. It returns cached characters if it has any, and otherwise fetches them and saves them. If a refresh fails, it throws instead of quietly returning the cache, so the screen keeps the list and says the refresh failed.
 
 ## Project structure
 

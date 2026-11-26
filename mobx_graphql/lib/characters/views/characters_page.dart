@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
+import 'package:mobx/mobx.dart';
 
 import '../presentation/characters_store.dart';
 import '../widgets/character_tile.dart';
@@ -16,11 +17,27 @@ class CharactersPage extends StatefulWidget {
 
 class _CharactersPageState extends State<CharactersPage> {
   CharactersStore get _store => widget.store;
+  late final ReactionDisposer _disposeErrorReaction;
 
   @override
   void initState() {
     super.initState();
+    // A failed refresh keeps the list on screen, so say that it failed.
+    _disposeErrorReaction = reaction((_) => _store.errorMessage, (message) {
+      if (message == null || _store.characters.isEmpty || !mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(content: Text("Couldn't refresh. Try again later.")),
+        );
+    });
     _store.load();
+  }
+
+  @override
+  void dispose() {
+    _disposeErrorReaction();
+    super.dispose();
   }
 
   @override

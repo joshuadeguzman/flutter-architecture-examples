@@ -13,12 +13,15 @@ class CharactersNotifier extends AsyncNotifier<List<Character>> {
   }
 
   /// Fetches fresh characters, skipping the cache.
+  ///
+  /// If it fails, the current list stays and the error is rethrown, so the
+  /// view can say that the refresh failed.
   Future<void> refresh() async {
-    state = await AsyncValue.guard(
-      () => ref
-          .read(charactersRepositoryProvider)
-          .getCharacters(forceRefresh: true),
-    );
+    final fresh = await ref
+        .read(charactersRepositoryProvider)
+        .getCharacters(forceRefresh: true);
+    // The screen may have closed while the request ran.
+    if (ref.mounted) state = AsyncData(fresh);
   }
 }
 
